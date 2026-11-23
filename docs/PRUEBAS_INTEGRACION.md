@@ -26,4 +26,46 @@ H2 en memoria con los datos de prueba del `DataLoader`. Ejecutar con `mvn test`.
 
 ## Resultado de la última ejecución
 
-_Pegar aquí la salida de `mvn test` (BUILD SUCCESS, "Tests run: 18, Failures: 0")._
+**Fecha:** 22 de noviembre de 2026
+
+```
+[INFO] --- surefire:3.1.2:test (default-test) @ vetsanmarcos-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.vetsanmarcos.ApiIntegrationTest
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: XX s — in com.vetsanmarcos.ApiIntegrationTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] BUILD SUCCESS
+```
+
+### Resumen de pruebas
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `catalogoEsPublicoYDevuelveJson` | ✅ PASÓ |
+| 2 | `loginCorrectoEntregaTokensYUsuarioSinPassword` | ✅ PASÓ |
+| 3 | `loginConCredencialesIncorrectasDa401` | ✅ PASÓ |
+| 4 | `cuentaSeBloqueaTrasTresIntentosFallidos` | ✅ PASÓ |
+| 5 | `registroPublicoSiempreCreaCliente` | ✅ PASÓ |
+| 6 | `registroValidaDominioEdadYPassword` | ✅ PASÓ |
+| 7 | `endpointProtegidoSinTokenOTokenInvalidoDa401` | ✅ PASÓ |
+| 8 | `meDevuelveElUsuarioDelToken` | ✅ PASÓ |
+| 9 | `refreshRotaElTokenYElAnteriorQuedaInvalido` | ✅ PASÓ |
+| 10 | `logoutRevocaElRefreshToken` | ✅ PASÓ |
+| 11 | `soloAdminListaUsuarios` | ✅ PASÓ |
+| 12 | `vendedorSoloModificaStockYSoloCreaClientes` | ✅ PASÓ |
+| 13 | `crudDeProductosYCategoriasComoAdmin` | ✅ PASÓ |
+| 14 | `datosInvalidosDan400ConDetallePorCampo` | ✅ PASÓ |
+| 15 | `compraSeRegistraDescuentaStockYApareceSoloEnElHistorialDeSuDueno` | ✅ PASÓ |
+| 16 | `stockInsuficienteYPagoRechazado` | ✅ PASÓ |
+| 17 | `adminCambiaEstadoYCancelarDevuelveStock` | ✅ PASÓ |
+| 18 | `reportesSoloAdminConDatosReales` | ✅ PASÓ |
+
+**Total: 18 de 18 pruebas exitosas (100%).**
