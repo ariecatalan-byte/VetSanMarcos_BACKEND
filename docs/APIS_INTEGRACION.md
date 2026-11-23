@@ -252,7 +252,115 @@ Se ejecutaron **18 pruebas de integración** con JUnit 5 y Spring Boot Test. Tod
 
 ---
 
-## 6. Datos de Prueba
+## 6. Integración Visual — Capturas de Pantalla
+
+Esta sección contiene las capturas de pantalla que evidencian la integración entre el frontend y el backend. Cada imagen muestra una operación realizada desde la interfaz de usuario y su resultado, verificando que la comunicación con la API REST funciona correctamente.
+
+> **Nota:** Las imágenes se deben tomar con la aplicación corriendo (`http://localhost:5173/`) y reemplazar los placeholders a continuación.
+
+---
+
+### 6.1 Catálogo de Productos
+
+**Descripción:** El frontend solicita `GET /api/v1/productos` y muestra las tarjetas de productos cargadas desde la base de datos.
+
+![Catálogo de productos](imagenes/catalogo.png)
+
+*Se observan los productos con nombre, categoría, precio y stock, obtenidos desde la API.*
+
+---
+
+### 6.2 Detalle de Producto
+
+**Descripción:** Al hacer clic en un producto, el frontend solicita `GET /api/v1/productos/{id}` y muestra la información completa.
+
+![Detalle de producto](imagenes/detalle-producto.png)
+
+*Se muestra la descripción, precio, categoría y stock disponible del producto seleccionado.*
+
+---
+
+### 6.3 Carrito de Compras
+
+**Descripción:** El carrito muestra los productos agregados con cantidades, subtotales y total calculados por el frontend.
+
+![Carrito de compras](imagenes/carrito.png)
+
+*Los productos en el carrito incluyen botones para modificar cantidad y eliminar, junto con el resumen de la orden.*
+
+---
+
+### 6.4 Confirmación de Compra Exitosa
+
+**Descripción:** Tras confirmar la compra, el frontend envía `POST /api/v1/ordenes` y el backend registra la orden, descuenta el stock y devuelve el resultado.
+
+![Compra exitosa](imagenes/compra-exitosa.png)
+
+*Mensaje de éxito tras registrar la orden correctamente en la base de datos.*
+
+---
+
+### 6.5 Historial de Compras del Cliente
+
+**Descripción:** El frontend solicita `GET /api/v1/ordenes/mis` y muestra únicamente las órdenes del usuario autenticado.
+
+![Historial de compras](imagenes/historial.png)
+
+*Tabla con identificador, fecha, estado y monto total de cada orden del cliente.*
+
+---
+
+### 6.6 Panel de Administración (Dashboard)
+
+**Descripción:** El administrador accede al dashboard que consume `GET /api/v1/reportes/resumen` para mostrar indicadores.
+
+![Dashboard administrativo](imagenes/dashboard.png)
+
+*Tarjetas con total de operaciones, monto vendido, unidades vendidas, gráfico de barras y productos más solicitados.*
+
+---
+
+### 6.7 Gestión de Usuarios
+
+**Descripción:** El administrador gestiona usuarios mediante `GET/POST/PUT/PATCH /api/v1/usuarios`.
+
+![Gestión de usuarios](imagenes/usuarios-admin.png)
+
+*Tabla con todos los usuarios registrados, sus roles y botones para crear, editar y desactivar.*
+
+---
+
+### 6.8 Gestión de Órdenes
+
+**Descripción:** El administrador consulta y actualiza el estado de las órdenes mediante `GET/PATCH /api/v1/ordenes`.
+
+![Gestión de órdenes](imagenes/ordenes-admin.png)
+
+*Tabla con todas las órdenes del sistema y opción para cambiar el estado (pendiente, pagada, enviada, entregada, cancelada).*
+
+---
+
+### 6.9 Mensaje de Error
+
+**Descripción:** Cuando el backend devuelve un error (ej: credenciales incorrectas, stock insuficiente), el frontend lo muestra al usuario.
+
+![Mensaje de error](imagenes/error.png)
+
+*Mensaje de error visible al usuario cuando la operación no puede completarse.*
+
+---
+
+### 6.10 Swagger UI
+
+**Descripción:** La documentación interactiva de la API está disponible en `http://localhost:8080/swagger-ui.html`.
+
+![Swagger UI](imagenes/swagger.png)
+
+*Documentación OpenAPI con todos los endpoints organizados por controlador y métodos HTTP.*
+
+---
+
+## 7. Datos de Prueba
 
 El backend carga datos de prueba automáticamente al iniciar (configurable con `SEED_ENABLED=true` en `.env`):
 
