@@ -2,9 +2,8 @@
 target/
 !.mvn/wrapper/maven-wrapper.jar
 
-# Secretos y configuración local (NUNCA subir a GitHub)
-.env
-.env.*
+# Configuración local
+!.env
 !.env.example
 application-local.properties
 
