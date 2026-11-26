@@ -99,3 +99,5 @@ Cubren: catálogo público, login correcto/incorrecto, cookie HttpOnly y renovac
 roles (403), logout, CRUD, validaciones 400, compra → stock → historial, aislamiento entre usuarios, estados, Swagger y reportes.
 La persistencia tras reiniciar puede verificarse con el perfil H2 en archivo; las pruebas automatizadas usan H2 en memoria.
 Ver `docs/PRUEBAS_INTEGRACION.md`.
+
+> Repositorio actualizado para entrega.
