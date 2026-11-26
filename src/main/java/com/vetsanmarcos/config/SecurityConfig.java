@@ -33,7 +33,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // API stateless con JWT en cabecera (sin cookies de sesión)
+            .csrf(csrf -> csrf.disable()) // API stateless; la cookie HttpOnly solo transporta el refresh token.
             .cors(cors -> {})
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex.authenticationEntryPoint(errorHandlers).accessDeniedHandler(errorHandlers))
@@ -56,6 +56,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(origenes));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

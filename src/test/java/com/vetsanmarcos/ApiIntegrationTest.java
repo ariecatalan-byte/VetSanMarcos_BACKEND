@@ -2,6 +2,7 @@ package com.vetsanmarcos;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -52,6 +53,10 @@ class ApiIntegrationTest {
         return login(correo, password).get("accessToken").asText();
     }
 
+    private ResultActions renovar(Cookie cookie) throws Exception {
+        return mvc.perform(post("/api/v1/auth/refresh").cookie(cookie));
+    }
+
     private Map<String, Object> datosUsuario(String correo) {
         return Map.ofEntries(
                 Map.entry("nombre", "Test"), Map.entry("apellido", "Usuario"), Map.entry("fechaNacimiento", "2000-01-01"),
@@ -82,13 +87,19 @@ class ApiIntegrationTest {
 
     // ----------------------------- login -----------------------------
     @Test
-    void loginCorrectoEntregaTokensYUsuarioSinPassword() throws Exception {
-        enviar("/api/v1/auth/login", null, Map.of("correo", "admin@duoc.cl", "password", "Admin1234"))
+    void loginCorrectoEntregaAccessTokenYCookieHttpOnly() throws Exception {
+        var respuesta = enviar("/api/v1/auth/login", null, Map.of("correo", "admin@duoc.cl", "password", "Admin1234"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.usuario.rol").value("administrador"))
-                .andExpect(jsonPath("$.usuario.password").doesNotExist());
+                .andExpect(jsonPath("$.usuario.password").doesNotExist())
+                .andReturn();
+        Cookie refresh = respuesta.getResponse().getCookie("vsm_refresh");
+        org.junit.jupiter.api.Assertions.assertNotNull(refresh);
+        org.junit.jupiter.api.Assertions.assertTrue(respuesta.getResponse().getHeader("Set-Cookie").contains("HttpOnly"));
+        org.junit.jupiter.api.Assertions.assertTrue(respuesta.getResponse().getHeader("Set-Cookie").contains("SameSite=Strict"));
+        org.junit.jupiter.api.Assertions.assertTrue(respuesta.getResponse().getHeader("Set-Cookie").contains("Path=/api/v1/auth"));
     }
 
     @Test
@@ -148,22 +159,36 @@ class ApiIntegrationTest {
 
     @Test
     void refreshRotaElTokenYElAnteriorQuedaInvalido() throws Exception {
-        String refresh = login("vendedor@duoc.cl", "Vendedor1234").get("refreshToken").asText();
-        String json = enviar("/api/v1/auth/refresh", null, Map.of("refreshToken", refresh))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andReturn().getResponse().getContentAsString();
-        String nuevo = om.readTree(json).get("refreshToken").asText();
+        var login = enviar("/api/v1/auth/login", null, Map.of("correo", "vendedor@duoc.cl", "password", "Vendedor1234"))
+                .andExpect(status().isOk()).andReturn();
+        Cookie refresh = login.getResponse().getCookie("vsm_refresh");
+        org.junit.jupiter.api.Assertions.assertNotNull(refresh);
+        var renovado = renovar(refresh).andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist()).andReturn();
+        Cookie nuevo = renovado.getResponse().getCookie("vsm_refresh");
+        org.junit.jupiter.api.Assertions.assertNotNull(nuevo);
         // reutilizar el refresh anterior debe fallar
-        enviar("/api/v1/auth/refresh", null, Map.of("refreshToken", refresh)).andExpect(status().isUnauthorized());
+        renovar(refresh).andExpect(status().isUnauthorized());
         // y detecta reutilización: se revocan también los demás
-        enviar("/api/v1/auth/refresh", null, Map.of("refreshToken", nuevo)).andExpect(status().isUnauthorized());
+        renovar(nuevo).andExpect(status().isUnauthorized());
     }
 
     @Test
     void logoutRevocaElRefreshToken() throws Exception {
-        String refresh = login("cliente@duoc.cl", "Cliente1234").get("refreshToken").asText();
-        enviar("/api/v1/auth/logout", null, Map.of("refreshToken", refresh)).andExpect(status().isNoContent());
-        enviar("/api/v1/auth/refresh", null, Map.of("refreshToken", refresh)).andExpect(status().isUnauthorized());
+        var login = enviar("/api/v1/auth/login", null, Map.of("correo", "cliente@duoc.cl", "password", "Cliente1234"))
+                .andExpect(status().isOk()).andReturn();
+        Cookie refresh = login.getResponse().getCookie("vsm_refresh");
+        org.junit.jupiter.api.Assertions.assertNotNull(refresh);
+        mvc.perform(post("/api/v1/auth/logout").cookie(refresh))
+                .andExpect(status().isNoContent())
+                .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")));
+        renovar(refresh).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refreshSinCookieDa401() throws Exception {
+        mvc.perform(post("/api/v1/auth/refresh")).andExpect(status().isUnauthorized());
     }
 
     // ----------------------------- roles -----------------------------
@@ -220,6 +245,42 @@ class ApiIntegrationTest {
         mvc.perform(delete("/api/v1/productos/" + prodId).header("Authorization", "Bearer " + admin)).andExpect(status().isNoContent());
         leer("/api/v1/productos/" + prodId, null).andExpect(status().isNotFound());
         mvc.perform(delete("/api/v1/categorias/" + catId).header("Authorization", "Bearer " + admin)).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void adminGestionaUsuariosYDesactivaQuienesTienenCompras() throws Exception {
+        String admin = token("admin@duoc.cl", "Admin1234");
+
+        String correoAdminCreado = "admin" + UUID.randomUUID().toString().substring(0, 6) + "@duoc.cl";
+        Map<String, Object> nuevoAdmin = datosUsuario(correoAdminCreado);
+        String usuarioJson = enviar("/api/v1/usuarios", admin, nuevoAdmin).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rol").value("administrador")).andReturn().getResponse().getContentAsString();
+        String idAdminCreado = om.readTree(usuarioJson).get("id").asText();
+
+        Map<String, Object> editar = new java.util.HashMap<>(nuevoAdmin);
+        editar.put("nombre", "Usuario editado");
+        editar.put("rol", "vendedor");
+        mvc.perform(put("/api/v1/usuarios/" + idAdminCreado).header("Authorization", "Bearer " + admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(editar)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.nombre").value("Usuario editado"))
+                .andExpect(jsonPath("$.rol").value("vendedor"));
+        mvc.perform(delete("/api/v1/usuarios/" + idAdminCreado).header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/usuarios/" + idAdminCreado).header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNotFound());
+
+        String correoCliente = "compra" + UUID.randomUUID().toString().substring(0, 6) + "@duoc.cl";
+        String registro = enviar("/api/v1/auth/register", null, datosUsuario(correoCliente))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        JsonNode cliente = om.readTree(registro).get("usuario");
+        String idCliente = cliente.get("id").asText();
+        String tokenCliente = om.readTree(registro).get("accessToken").asText();
+        enviar("/api/v1/ordenes", tokenCliente, ordenDe("1", 1, true)).andExpect(status().isCreated());
+
+        mvc.perform(delete("/api/v1/usuarios/" + idCliente).header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/usuarios/" + idCliente).header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.activo").value(false));
     }
 
     @Test
@@ -304,5 +365,14 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.serie.length()", greaterThan(0)));
         leer("/api/v1/reportes/resumen?periodo=semana", token("admin@duoc.cl", "Admin1234")).andExpect(status().isOk());
         leer("/api/v1/reportes/resumen?periodo=invalido", token("admin@duoc.cl", "Admin1234")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void swaggerPublicaLosEndpointsRest() throws Exception {
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/productos'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/ordenes'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/usuarios'].delete").doesNotExist());
     }
 }

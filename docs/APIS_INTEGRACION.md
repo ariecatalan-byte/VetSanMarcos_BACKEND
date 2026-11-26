@@ -142,7 +142,7 @@ El modelo de datos se compone de 5 entidades principales:
 │                                                             │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐                │
 │  │  Pages   │──▶│  Context │──▶│   API    │                │
-│  │ (Vistas) │   │ (Estado) │   │ (Fetch)  │                │
+│  │ (Vistas) │   │ (Estado) │   │ (Axios)  │                │
 │  └──────────┘   └──────────┘   └────┬─────┘                │
 │                                     │                       │
 └─────────────────────────────────────┼───────────────────────┘
@@ -169,7 +169,7 @@ El modelo de datos se compone de 5 entidades principales:
 
 ### 4.2 Cliente HTTP del Frontend
 
-El frontend utiliza `fetch` nativo de JavaScript para comunicarse con el backend. La configuración se encuentra en `src/api/cliente.ts`:
+El frontend utiliza Axios para comunicarse con el backend. La configuración del cliente está en `src/api/cliente.ts`:
 
 - **URL base:** `http://localhost:8080/api/v1` (desde variable `VITE_API_URL`)
 - **Encabezados:** `Content-Type: application/json`
@@ -177,11 +177,12 @@ El frontend utiliza `fetch` nativo de JavaScript para comunicarse con el backend
 
 ### 4.3 Gestión de Tokens
 
-1. **Login:** El backend devuelve `accessToken` y `refreshToken`.
-2. **Access token:** Se guarda en memoria (no en localStorage) y se incluye en cada solicitud.
-3. **Refresh token:** Se guarda en localStorage para persistencia al recargar la página.
-4. **Renovación automática:** Cuando el backend responde 401, el frontend solicita un nuevo token con `POST /auth/refresh` y reintentar la solicitud original.
-5. **Cierre de sesión:** Se llama a `POST /auth/logout` para revocar el refresh token y se limpia el estado local.
+1. **Login:** El backend devuelve el `accessToken` en JSON y establece el refresh token en una cookie `HttpOnly`.
+2. **Almacenamiento:** El access token vive en memoria; el refresh token no es accesible para JavaScript y se envía en cookie `SameSite=Strict`, `Path=/api/v1/auth`.
+3. **Renovación automática:** Al cargar la aplicación y ante un 401, el frontend solicita un nuevo access token mediante `POST /auth/refresh`; el navegador adjunta la cookie y el backend la rota.
+4. **Cierre de sesión:** `POST /auth/logout` revoca el refresh token y expira la cookie. La sesión se restaura tras recargar si el refresh sigue vigente.
+
+Para despliegues HTTPS, configura `REFRESH_COOKIE_SECURE=true`. Mantén frontend y API bajo el mismo sitio para que `SameSite=Strict` permita la cookie.
 
 ### 4.4 CORS
 
@@ -190,6 +191,8 @@ El backend configura CORS en `SecurityConfig.java` para permitir solicitudes des
 ```properties
 app.cors.allowed-origins=http://localhost:5173
 ```
+
+Las credenciales CORS se habilitan en `SecurityConfig`; no se requiere una propiedad adicional.
 
 ### 4.5 Manejo de Errores
 
@@ -207,7 +210,7 @@ El frontend maneja los errores de comunicación de la siguiente manera:
 
 ### 5.1 Pruebas de Backend
 
-Se ejecutaron **18 pruebas de integración** con JUnit 5 y Spring Boot Test. Todas exitosas (100%).
+Se ejecutaron **21 pruebas de integración** con JUnit 5 y Spring Boot Test. Todas exitosas.
 
 | # | Prueba | Resultado |
 |---|---|---|
@@ -221,34 +224,37 @@ Se ejecutaron **18 pruebas de integración** con JUnit 5 y Spring Boot Test. Tod
 | 8 | /me devuelve el usuario del token | ✅ PASÓ |
 | 9 | Refresh rota el token y el anterior queda inválido | ✅ PASÓ |
 | 10 | Logout revoca el refresh token | ✅ PASÓ |
-| 11 | Solo admin lista usuarios | ✅ PASÓ |
-| 12 | Vendedor solo modifica stock | ✅ PASÓ |
-| 13 | CRUD de productos y categorías como admin | ✅ PASÓ |
-| 14 | Datos inválidos dan 400 con detalle por campo | ✅ PASÓ |
-| 15 | Compra se registra, descuenta stock y aparece en historial | ✅ PASÓ |
-| 16 | Stock insuficiente y pago rechazado | ✅ PASÓ |
-| 17 | Admin cambia estado y cancelar devuelve stock | ✅ PASÓ |
-| 18 | Reportes solo admin con datos reales | ✅ PASÓ |
+| 11 | Refresh sin cookie es rechazado | ✅ PASÓ |
+| 12 | Solo admin lista usuarios | ✅ PASÓ |
+| 13 | Vendedor solo modifica stock | ✅ PASÓ |
+| 14 | CRUD de productos y categorías como admin | ✅ PASÓ |
+| 15 | Gestión y desactivación de usuarios | ✅ PASÓ |
+| 16 | Datos inválidos dan 400 con detalle por campo | ✅ PASÓ |
+| 17 | Compra se registra, descuenta stock y aparece en historial | ✅ PASÓ |
+| 18 | Stock insuficiente y pago rechazado | ✅ PASÓ |
+| 19 | Admin cambia estado y cancelar devuelve stock | ✅ PASÓ |
+| 20 | Reportes solo admin con datos reales | ✅ PASÓ |
+| 21 | Swagger publica endpoints REST | ✅ PASÓ |
 
-**Resultado:** `BUILD SUCCESS — Tests run: 18, Failures: 0, Errors: 0, Skipped: 0`
+**Resultado:** `BUILD SUCCESS — Tests run: 21, Failures: 0, Errors: 0, Skipped: 0`
 
 ### 5.2 Pruebas de Comunicación Frontend-Backend
 
 | Prueba | Descripción | Resultado |
 |---|---|---|
-| 1 | Login con credenciales correctas | ✅ El frontend recibe tokens y redirige al usuario |
-| 2 | Login con credenciales incorrectas | ✅ El frontend muestra mensaje de error |
-| 3 | Catálogo de productos | ✅ El frontend obtiene y muestra los productos desde la API |
-| 4 | Filtros de productos | ✅ Los parámetros se envían correctamente al backend |
-| 5 | Crear orden (compra) | ✅ El frontend envía las líneas y el backend registra la orden |
-| 6 | Historial de compras | ✅ El frontend obtiene solo las órdenes del usuario autenticado |
-| 7 | Panel de administración | ✅ Solo ADMIN y VENDEDOR pueden acceder |
-| 8 | CRUD de productos | ✅ El frontend crea, edita y elimina productos vía API |
-| 9 | Cambio de estado de orden | ✅ El frontend envía PATCH y el backend actualiza el estado |
-| 10 | Reportes administrativos | ✅ El frontend obtiene datos reales calculados por el backend |
-| 11 | Persistencia de sesión al recargar | ✅ El frontend renueva el token y mantiene la sesión |
-| 12 | Cierre de sesión | ✅ El backend revoca el token y el frontend limpia el estado |
-| 13 | Acceso no autorizado por URL directa | ✅ El frontend muestra "Acceso denegado" y el backend responde 403 |
+| 1 | Login con credenciales correctas | Pendiente de verificación manual en navegador |
+| 2 | Login con credenciales incorrectas | Pendiente de verificación manual en navegador |
+| 3 | Catálogo de productos | Pendiente de verificación manual front-back-DB |
+| 4 | Filtros de productos | Pendiente de verificación manual en navegador |
+| 5 | Crear orden (compra) | Pendiente de verificación manual front-back-DB |
+| 6 | Historial de compras | Pendiente de verificación manual con cuentas distintas |
+| 7 | Panel de administración | Pendiente de verificación manual con los roles |
+| 8 | CRUD de productos | Pendiente de verificación manual front-back-DB |
+| 9 | Cambio de estado de orden | Pendiente de verificación manual front-back-DB |
+| 10 | Reportes administrativos | Pendiente de verificación manual con datos de BD |
+| 11 | Persistencia de sesión | Pendiente de verificación manual en navegador; el backend renueva con cookie HttpOnly |
+| 12 | Cierre de sesión | Pendiente de verificación manual en navegador |
+| 13 | Acceso no autorizado por URL directa | Pendiente de verificación manual con los roles |
 
 ---
 
@@ -398,6 +404,6 @@ El backend carga datos de prueba automáticamente al iniciar (configurable con `
 El proyecto Vet San Marcos demuestra una integración completa entre frontend y backend:
 
 - **Backend:** API REST con Spring Boot, autenticación JWT, roles, persistencia con MySQL y documentación Swagger.
-- **Frontend:** Aplicación React con TypeScript que consume la API mediante fetch, gestiona sesiones con refresh token y protege rutas por rol.
+- **Frontend:** Aplicación React con TypeScript que consume la API mediante Axios, gestiona en memoria los tokens de sesión y protege rutas por rol.
 - **Base de datos:** Modelo relacional con 5 entidades y relaciones que soporta todas las operaciones de negocio.
-- **Pruebas:** 18 pruebas de integración automatizadas (100% exitosas) y pruebas manuales de comunicación frontend-backend documentadas.
+- **Pruebas:** 21 pruebas de integración automatizadas exitosas; la verificación manual front-back-DB está pendiente.

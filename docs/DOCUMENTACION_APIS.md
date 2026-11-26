@@ -34,7 +34,7 @@ El token de acceso tiene vigencia de **15 minutos**. Cuando expira, el frontend 
 - **Solicitud:**
   ```json
   {
-    "email": "admin@duoc.cl",
+    "correo": "admin@duoc.cl",
     "password": "Admin1234"
   }
   ```
@@ -42,12 +42,11 @@ El token de acceso tiene vigencia de **15 minutos**. Cuando expira, el frontend 
   ```json
   {
     "accessToken": "eyJhbGciOi...",
-    "refreshToken": "eyJhbGciOi...",
     "usuario": {
       "id": 1,
       "nombre": "Admin",
-      "email": "admin@duoc.cl",
-      "rol": "ADMIN",
+      "correo": "admin@duoc.cl",
+      "rol": "administrador",
       "permisos": ["panel:acceder", "usuarios:gestionar", ...]
     }
   }
@@ -55,21 +54,23 @@ El token de acceso tiene vigencia de **15 minutos**. Cuando expira, el frontend 
 - **Respuesta error (401 Unauthorized):** Credenciales incorrectas.
 - **Respuesta error (423 Locked):** Cuenta bloqueada por intentos fallidos.
 
+- El refresh token se establece solo en una cookie `HttpOnly`, `SameSite=Strict`, limitada a `/api/v1/auth`.
+
 ### 3.2 Registrar usuario
 
 - **Método:** `POST`
-- **Ruta:** `/auth/registro`
+- **Ruta:** `/auth/register`
 - **Acceso:** Público
 - **Solicitud:**
   ```json
   {
     "nombre": "Juan Perez",
-    "email": "juan@duoc.cl",
+    "correo": "juan@duoc.cl",
     "fechaNacimiento": "1990-01-01",
     "password": "Password123"
   }
   ```
-- **Respuesta exitosa (201 Created):** Usuario creado con rol CLIENTE.
+- **Respuesta exitosa (201 Created):** Usuario creado con rol CLIENTE; entrega access token y cookie de sesion.
 - **Respuesta error (400 Bad Request):** Datos inválidos (edad menor a 18, email inválido, contraseña débil).
 - **Respuesta error (409 Conflict):** Email ya registrado.
 
@@ -77,22 +78,17 @@ El token de acceso tiene vigencia de **15 minutos**. Cuando expira, el frontend 
 
 - **Método:** `POST`
 - **Ruta:** `/auth/refresh`
-- **Acceso:** Público (requiere refresh token válido)
-- **Solicitud:**
-  ```json
-  {
-    "refreshToken": "eyJhbGciOi..."
-  }
-  ```
-- **Respuesta exitosa (200 OK):** Nuevo `accessToken` y nuevo `refreshToken` (rotativo).
+- **Acceso:** Público (requiere la cookie `vsm_refresh`).
+- **Solicitud:** Sin cuerpo; el navegador adjunta la cookie HttpOnly.
+- **Respuesta exitosa (200 OK):** Nuevo `accessToken` en JSON y refresh token rotado en cookie HttpOnly.
 - **Respuesta error (401 Unauthorized):** Refresh token inválido o expirado.
 
 ### 3.4 Cerrar sesión
 
 - **Método:** `POST`
 - **Ruta:** `/auth/logout`
-- **Acceso:** Autenticado
-- **Respuesta exitosa (204 No Content):** Token revocado.
+- **Acceso:** Publico (requiere la cookie `vsm_refresh`).
+- **Respuesta exitosa (204 No Content):** Token revocado y cookie expirada.
 
 ### 3.5 Obtener perfil del usuario autenticado
 

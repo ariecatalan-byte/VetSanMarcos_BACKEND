@@ -130,7 +130,7 @@ El modelo de datos se compone de 5 entidades principales con relaciones:
 
 ### 4.4 Pruebas
 
-- 18 pruebas de integración que cubren login, JWT, roles, CRUD, compras, historial, reportes y seguridad.
+- 21 pruebas de integración que cubren login, JWT, roles, CRUD, compras, historial, reportes y seguridad.
 - 100% de pruebas exitosas documentadas en `docs/PRUEBAS_INTEGRACION.md`.
 
 ---

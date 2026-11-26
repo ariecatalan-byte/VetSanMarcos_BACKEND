@@ -39,7 +39,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=h2
 ## Variables de entorno (`.env.example`)
 
 `DB_URL`, `DB_USER`, `DB_PASSWORD`, **`JWT_SECRET`** (obligatoria, ≥ 32 caracteres: `openssl rand -base64 48`), `JWT_ACCESS_MS` (15 min),
-`JWT_REFRESH_DAYS` (7), `CORS_ORIGINS`, `SEED_ENABLED`. Ninguna credencial está en el repositorio.
+`JWT_REFRESH_DAYS` (7), `REFRESH_COOKIE_SECURE` (true en HTTPS), `CORS_ORIGINS`, `SEED_ENABLED`. Ninguna clave de firma tiene valor por defecto.
 
 > ⚠️ El `JWT_SECRET` y la clave anteriores estuvieron publicados en el historial de git. Considéralos comprometidos: usa valores nuevos.
 
@@ -82,7 +82,7 @@ Respuestas JSON; códigos: 200, 201 (creado), 204 (eliminado/logout), 400 (valid
 
 - **Contraseñas** con BCrypt. El registro público siempre crea clientes. Cuenta bloqueada tras 3 intentos fallidos.
 - **JWT** firmado (HMAC), vigencia 15 min; firma y expiración se validan en cada solicitud; el rol se lee de la BD.
-- **Refresh token** aleatorio de 256 bits, guardado como hash SHA-256, **rotativo** (cada uso emite uno nuevo y revoca el anterior); reutilizar uno revocado revoca todos los del usuario. `logout` lo revoca.
+- **Refresh token** aleatorio de 256 bits, guardado como hash SHA-256, **rotativo** (cada uso emite uno nuevo y revoca el anterior); viaja solo en cookie `HttpOnly`, `SameSite=Strict`, limitada a `/api/v1/auth`; reutilizar uno revocado revoca todos los del usuario. `logout` lo revoca y limpia la cookie.
 - **Roles** (ADMIN, VENDEDOR, CLIENTE) aplicados con `@PreAuthorize` en cada endpoint, independiente del frontend.
 - **Aislamiento:** un cliente solo ve sus órdenes (`GET /ordenes/{id}` ajena → 403).
 - **Integridad de compra:** el cliente envía solo `idProducto` y `cantidad`; el servidor calcula precios/total, valida stock con bloqueo de filas y descuenta atómicamente.
@@ -92,8 +92,10 @@ Respuestas JSON; códigos: 200, 201 (creado), 204 (eliminado/logout), 400 (valid
 ## Pruebas
 
 ```bash
-mvn test        # 18 pruebas de integración (MockMvc + H2 en memoria) → ApiIntegrationTest
+mvn test        # pruebas de integración (MockMvc + H2 en memoria) → ApiIntegrationTest
 ```
 
-Cubren: catálogo público, login correcto/incorrecto, bloqueo, registro, 401 sin token/token inválido, roles (403), refresh con rotación, logout,
-CRUD, validaciones 400, compra → stock → historial, aislamiento entre usuarios, estados y reportes. Ver `docs/PRUEBAS_INTEGRACION.md`.
+Cubren: catálogo público, login correcto/incorrecto, cookie HttpOnly y renovación de sesión, bloqueo, registro, 401 sin token/token inválido,
+roles (403), logout, CRUD, validaciones 400, compra → stock → historial, aislamiento entre usuarios, estados, Swagger y reportes.
+La persistencia tras reiniciar puede verificarse con el perfil H2 en archivo; las pruebas automatizadas usan H2 en memoria.
+Ver `docs/PRUEBAS_INTEGRACION.md`.

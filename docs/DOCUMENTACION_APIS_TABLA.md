@@ -25,10 +25,10 @@ La API REST de Vet San Marcos gestiona el backend de una aplicación veterinaria
 
 | Método HTTP | Ruta del Endpoint | Descripción | Datos de entrada | Respuestas | API Pública/Privada | Requiere Autenticación | Roles permitidos | Observaciones |
 |---|---|---|---|---|---|---|---|---|
-| POST | `/auth/login` | Iniciar sesión y obtener tokens JWT | `{"email": "admin@duoc.cl", "password": "Admin1234"}` | 200: Éxito (tokens), 401: Credenciales incorrectas, 423: Cuenta bloqueada | Pública | No | N/A | Devuelve accessToken (15 min) y refreshToken (7 días) |
-| POST | `/auth/registro` | Registrar un nuevo usuario con rol CLIENTE | `{"nombre": "Juan", "email": "juan@duoc.cl", "fechaNacimiento": "1990-01-01", "password": "Password123"}` | 201: Creado, 400: Datos inválidos, 409: Email ya registrado | Pública | No | N/A | Valida edad mínima 18 años y contraseña segura |
-| POST | `/auth/refresh` | Renovar token de acceso de forma segura | `{"refreshToken": "eyJhbGciOi..."}` | 200: Nuevos tokens, 401: Refresh token inválido | Pública | Sí (refresh token) | N/A | Token rotativo con hash SHA-256 |
-| POST | `/auth/logout` | Cerrar sesión y revocar token | N/A | 204: Token revocado | Privada | Sí | Todos | Invalida el refresh token en la base de datos |
+| POST | `/auth/login` | Iniciar sesion | `{"correo": "admin@duoc.cl", "password": "..."}` | 200: Access token y usuario, 401: Credenciales incorrectas, 423: Cuenta bloqueada | Publica | No | N/A | Refresh token en cookie HttpOnly; no se incluye en JSON |
+| POST | `/auth/register` | Registrar un nuevo usuario con rol CLIENTE | Datos de usuario | 201: Sesion iniciada, 400: Datos invalidos, 409: Email ya registrado | Publica | No | N/A | Devuelve access token y establece cookie HttpOnly |
+| POST | `/auth/refresh` | Renovar la sesion | Sin cuerpo; requiere cookie `vsm_refresh` | 200: Nuevo access token, 401: Refresh token invalido | Publica | Cookie HttpOnly | N/A | Rota el refresh token; se almacena como hash SHA-256 |
+| POST | `/auth/logout` | Cerrar sesion y revocar token | Sin cuerpo; requiere cookie `vsm_refresh` | 204: Sesion cerrada | Publica | Cookie HttpOnly | N/A | Revoca el refresh token y expira la cookie |
 | GET | `/auth/me` | Obtener perfil del usuario autenticado | N/A | 200: Datos del usuario | Privada | Sí | Todos | Devuelve nombre, email, rol y permisos |
 | PUT | `/auth/perfil` | Actualizar datos del perfil | `{"nombre": "Nuevo Nombre", "fechaNacimiento": "1990-01-01"}` | 200: Perfil actualizado, 400: Datos inválidos | Privada | Sí | Todos | Solo el usuario puede actualizar su propio perfil |
 | GET | `/productos` | Listar todos los productos del catálogo | N/A | 200: Lista de productos, 500: Error del servidor | Pública | No | N/A | Soporta filtros: `?categoriaId&busqueda&precioMax` |
@@ -92,7 +92,7 @@ Todos los errores devuelven un JSON con la siguiente estructura:
 
 ## Integración con el Frontend
 
-El frontend (React 19) se comunica con la API mediante `fetch` configurado en `http://localhost:8080/api/v1`. Cada solicitud protegida incluye el token JWT en el encabezado `Authorization: Bearer <token>`. Cuando el token expira, el frontend renueva automáticamente la sesión mediante `POST /auth/refresh`.
+El frontend (React 19) se comunica con la API mediante Axios configurado en `http://localhost:8080/api/v1`. Cada solicitud protegida incluye el token JWT en el encabezado `Authorization: Bearer <token>`. Mientras la aplicación está abierta, el frontend renueva una vez la sesión mediante `POST /auth/refresh` si el servidor responde 401. Los tokens solo viven en memoria: tras recargar, se requiere iniciar sesión nuevamente.
 
 La comunicación está habilitada con CORS configurado en el backend para aceptar solicitudes desde `http://localhost:5173`.
 
